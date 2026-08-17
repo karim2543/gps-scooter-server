@@ -21,14 +21,51 @@ app.listen(PORT, "0.0.0.0", () => {
 });
 
 app.post("/api/gps", (req, res) => {
-    // notre serveur accepte les requêtes POST à l'endpoint /api/gps et récupère les données GPS envoyées par le scooter
-    const data = req.body;
 
-    console.log("GPS data received:");
-    console.log(data);
+    const { device_id, latitude, longitude, speed } = req.body;
 
-    res.json({
+    // Vérifier la présence des données obligatoires
+    if (!device_id || latitude === undefined || longitude === undefined) {
+        return res.status(400).json({
+            success: false,
+            message: "Missing GPS data"
+        });
+    }
+
+    // Vérifier que latitude et longitude sont des nombres
+    if (typeof latitude !== "number" || typeof longitude !== "number") {
+        return res.status(400).json({
+            success: false,
+            message: "Latitude and longitude must be numbers"
+        });
+    }
+
+    // Vérifier les limites géographiques
+    if (latitude < -90 || latitude > 90) {
+        return res.status(400).json({
+            success: false,
+            message: "Invalid latitude"
+        });
+    }
+
+    if (longitude < -180 || longitude > 180) {
+        return res.status(400).json({
+            success: false,
+            message: "Invalid longitude"
+        });
+    }
+
+    // Si tout est correct
+    console.log("Valid GPS data received:");
+    console.log({
+        device_id,
+        latitude,
+        longitude,
+        speed
+    });
+
+    res.status(200).json({
         success: true,
-        message: "GPS data received"
+        message: "GPS data accepted"
     });
 });
