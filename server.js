@@ -22,17 +22,44 @@ app.listen(PORT, "0.0.0.0", () => {
 
 app.post("/api/gps", (req, res) => {
 
-    const { device_id, latitude, longitude, speed } = req.body;
+    const {
+        device_id,
+        token,
+        latitude,
+        longitude,
+        speed
+    } = req.body;
 
-    // Vérifier la présence des données obligatoires
-    if (!device_id || latitude === undefined || longitude === undefined) {
+    // Vérifier les champs obligatoires
+    if (
+        !device_id ||
+        !token ||
+        latitude === undefined ||
+        longitude === undefined
+    ) {
         return res.status(400).json({
             success: false,
-            message: "Missing GPS data"
+            message: "Missing required data"
         });
     }
 
-    // Vérifier que latitude et longitude sont des nombres
+    // Vérifier l'identité du scooter
+    if (device_id !== "SCOOTER001") {
+        return res.status(401).json({
+            success: false,
+            message: "Unknown device"
+        });
+    }
+
+    // Vérifier le token secret
+    if (token !== process.env.DEVICE_TOKEN) {
+        return res.status(401).json({
+            success: false,
+            message: "Invalid token"
+        });
+    }
+
+    // Vérifier les coordonnées
     if (typeof latitude !== "number" || typeof longitude !== "number") {
         return res.status(400).json({
             success: false,
@@ -40,7 +67,6 @@ app.post("/api/gps", (req, res) => {
         });
     }
 
-    // Vérifier les limites géographiques
     if (latitude < -90 || latitude > 90) {
         return res.status(400).json({
             success: false,
@@ -55,16 +81,14 @@ app.post("/api/gps", (req, res) => {
         });
     }
 
-    // Si tout est correct
-    console.log("Valid GPS data received:");
-    console.log({
+    console.log("Authenticated GPS data received:", {
         device_id,
         latitude,
         longitude,
         speed
     });
 
-    res.status(200).json({
+    return res.status(200).json({
         success: true,
         message: "GPS data accepted"
     });
