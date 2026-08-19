@@ -28,26 +28,14 @@ app.listen(PORT, "0.0.0.0", () => {
     console.log(`Server running on port ${PORT}`);
 });
 
-app.post("/api/gps", async (req, res) => {
+function authenticateDevice(req, res, next) {
+    const { device_id, token } = req.body;
 
-    const {
-        device_id,
-        token,
-        latitude,
-        longitude,
-        speed
-    } = req.body;
-
-    // Vérifier les champs obligatoires
-    if (
-        !device_id ||
-        !token ||
-        latitude === undefined ||
-        longitude === undefined
-    ) {
+    // Vérifier que device_id et token sont présents
+    if (!device_id || !token) {
         return res.status(400).json({
             success: false,
-            message: "Missing required data"
+            message: "Missing device_id or token"
         });
     }
 
@@ -59,13 +47,27 @@ app.post("/api/gps", async (req, res) => {
         });
     }
 
-    // Vérifier le token secret
+    // Vérifier le token
     if (token !== process.env.DEVICE_TOKEN) {
         return res.status(401).json({
             success: false,
             message: "Invalid token"
         });
     }
+
+    // Authentification réussie
+    next();
+}
+
+app.post("/api/gps", authenticateDevice, async (req, res) => {
+
+    const {
+        device_id,
+        token,
+        latitude,
+        longitude,
+        speed
+    } = req.body;
 
     // Vérifier les coordonnées
     if (typeof latitude !== "number" || typeof longitude !== "number") {
