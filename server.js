@@ -63,7 +63,6 @@ app.post("/api/gps", authenticateDevice, async (req, res) => {
 
     const {
         device_id,
-        token,
         latitude,
         longitude,
         speed
