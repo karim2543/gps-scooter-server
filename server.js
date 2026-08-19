@@ -12,6 +12,20 @@ const supabase = createClient(
     process.env.SUPABASE_KEY
 );
 
+async function testSupabase() {
+    const { data, error } = await supabase
+        .from("gps_positions")
+        .select("id")
+        .limit(1);
+
+    if (error) {
+        console.error("Supabase connection error:", error);
+    } else {
+        console.log("Supabase connection successful:", data);
+    }
+}
+
+testSupabase();
 
 
 app.get("/", (req, res) => {
