@@ -277,6 +277,44 @@
         }
     }
 
+let routeLine;
+async function loadHistory() {
+
+    try {
+
+        const response = await fetch(
+            `/api/gps/history/${DEVICE_ID}`
+        );
+
+        const result = await response.json();
+
+        if (!response.ok || !result.success) {
+            throw new Error(
+                result.message || "Erreur lors du chargement de l'historique"
+            );
+        }
+
+        const points = result.data.map(point => [
+            Number(point.latitude),
+            Number(point.longitude)
+        ]);
+
+        if (points.length < 2) {
+            return;
+        }
+
+        if (routeLine) {
+            map.removeLayer(routeLine);
+        }
+
+        routeLine = L.polyline(points).addTo(map);
+
+    } catch (error) {
+
+        console.error("Erreur historique GPS :", error);
+    }
+}
+
     // =====================================================
     // Démarrage
     // =====================================================
@@ -284,10 +322,12 @@
 initMap();
 
 getLatestPosition();
+loadHistory();
 
 // Mise à jour automatique toutes les 5 secondes
 setInterval(() => {
     getLatestPosition();
+    loadHistory();
 }, 5000);
 
 </script>
