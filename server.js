@@ -258,6 +258,10 @@ function requireDashboardAuth(req, res, next) {
 
 app.get("/", requireDashboardAuth, (req, res) => {
 
+    console.log("Dashboard access:", {
+        authenticated: req.session.authenticated
+    });
+
     res.sendFile(
         path.join(__dirname, "public", "index.html")
     );
