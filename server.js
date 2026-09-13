@@ -227,7 +227,8 @@ app.get("/api/gps/history/:device_id", async (req, res) => {
         .from("gps_positions")
         .select("latitude, longitude, speed, created_at")
         .eq("device_id", device_id)
-        .order("created_at", { ascending: true });
+        .order("created_at", { ascending: false })
+        .limit(500);
 
     if (error) {
 
@@ -238,6 +239,9 @@ app.get("/api/gps/history/:device_id", async (req, res) => {
             message: "Failed to retrieve GPS history"
         });
     }
+
+    // On remet les positions dans l'ordre chronologique
+    data.reverse();
 
     return res.status(200).json({
         success: true,
