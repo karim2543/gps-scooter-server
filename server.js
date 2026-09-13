@@ -190,6 +190,13 @@ app.use(express.urlencoded({ extended: false }));
 
 app.post("/login", (req, res) => {
 
+    console.log("Login attempt:", {
+        usernameReceived: req.body.username,
+        userConfigured: !!process.env.DASHBOARD_USER,
+        passwordConfigured: !!process.env.DASHBOARD_PASSWORD,
+        sessionSecretConfigured: !!process.env.SESSION_SECRET
+    });
+
     const { username, password } = req.body;
 
     if (
@@ -199,8 +206,23 @@ app.post("/login", (req, res) => {
 
         req.session.authenticated = true;
 
-        return res.redirect("/");
+        return req.session.save((err) => {
+
+            if (err) {
+                console.error("Session save error:", err);
+
+                return res.status(500).send(
+                    "Session error"
+                );
+            }
+
+            console.log("Dashboard login successful");
+
+            res.redirect("/");
+        });
     }
+
+    console.log("Dashboard login failed");
 
     return res.redirect("/login?error=1");
 });
