@@ -136,6 +136,11 @@
         <div id="map"></div>
     </div>
 
+    <div class="card">
+    <div class="label">Dernière mise à jour</div>
+    <div id="lastUpdate" class="value">--</div>
+    </div>
+
 </div>
 
 <!-- Leaflet JS -->
@@ -193,16 +198,32 @@
             }
 
             const gps = result.data;
+            const lastUpdate = new Date(gps.created_at);
+            const now = new Date();
 
+            const age = (now - lastUpdate) / 1000;
+
+            if (age <= 15) {
+
+                document.getElementById("status").textContent =
+                    "En ligne";
+
+                document.getElementById("status").className =
+                    "value status";
+
+            } else {
+
+                document.getElementById("status").textContent =
+                    "Hors ligne";
+
+                document.getElementById("status").className =
+                    "value error";
+                document.getElementById("lastUpdate").textContent =
+                    lastUpdate.toLocaleTimeString();
+                }
             // =============================================
             // Affichage des données
             // =============================================
-
-            document.getElementById("status").textContent =
-                "Connecté";
-
-            document.getElementById("status").className =
-                "value status";
 
             document.getElementById("latitude").textContent =
                 Number(gps.latitude).toFixed(6);
@@ -267,7 +288,7 @@ getLatestPosition();
 // Mise à jour automatique toutes les 5 secondes
 setInterval(() => {
     getLatestPosition();
-}, 30000);
+}, 5000);
 
 </script>
 
