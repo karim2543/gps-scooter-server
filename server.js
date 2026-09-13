@@ -244,8 +244,12 @@ app.get("/logout", (req, res) => {
 
 function requireDashboardAuth(req, res, next) {
 
-    if (!req.session.authenticated) {
+    console.log("Dashboard auth check:", {
+        authenticated: req.session.authenticated,
+        sessionID: req.sessionID
+    });
 
+    if (!req.session.authenticated) {
         return res.redirect("/login");
     }
 
