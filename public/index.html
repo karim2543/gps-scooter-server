@@ -260,9 +260,14 @@
     // Démarrage
     // =====================================================
 
-    initMap();
+initMap();
 
+getLatestPosition();
+
+// Mise à jour automatique toutes les 5 secondes
+setInterval(() => {
     getLatestPosition();
+}, 30000);
 
 </script>
 
