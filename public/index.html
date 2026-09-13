@@ -1,15 +1,275 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="fr">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
     <title>GPS Scooter Tracker</title>
+
+    <!-- Leaflet CSS -->
+    <link
+        rel="stylesheet"
+        href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+    >
+
+    <style>
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            margin: 0;
+            font-family: Arial, sans-serif;
+            background: #f4f6f8;
+            color: #222;
+        }
+
+        header {
+            padding: 20px;
+            background: #1f2937;
+            color: white;
+        }
+
+        header h1 {
+            margin: 0;
+            font-size: 24px;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: auto;
+            padding: 20px;
+        }
+
+        .info-panel {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+
+        .card {
+            background: white;
+            padding: 18px;
+            border-radius: 10px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+        }
+
+        .label {
+            font-size: 14px;
+            color: #666;
+            margin-bottom: 8px;
+        }
+
+        .value {
+            font-size: 20px;
+            font-weight: bold;
+        }
+
+        #map {
+            width: 100%;
+            height: 600px;
+            border-radius: 10px;
+            overflow: hidden;
+        }
+
+        .status {
+            color: #15803d;
+        }
+
+        .error {
+            color: #dc2626;
+        }
+
+        @media (max-width: 800px) {
+            .info-panel {
+                grid-template-columns: repeat(2, 1fr);
+            }
+        }
+
+        @media (max-width: 500px) {
+            .info-panel {
+                grid-template-columns: 1fr;
+            }
+
+            #map {
+                height: 450px;
+            }
+        }
+    </style>
 </head>
+
 <body>
 
+<header>
     <h1>GPS Scooter Tracker</h1>
+</header>
 
-    <p>Frontend is working.</p>
+<div class="container">
+
+    <div class="info-panel">
+
+        <div class="card">
+            <div class="label">Statut</div>
+            <div id="status" class="value">Connexion...</div>
+        </div>
+
+        <div class="card">
+            <div class="label">Latitude</div>
+            <div id="latitude" class="value">--</div>
+        </div>
+
+        <div class="card">
+            <div class="label">Longitude</div>
+            <div id="longitude" class="value">--</div>
+        </div>
+
+        <div class="card">
+            <div class="label">Vitesse</div>
+            <div id="speed" class="value">-- km/h</div>
+        </div>
+
+    </div>
+
+    <div class="card">
+        <div class="label">Position du scooter</div>
+        <div id="map"></div>
+    </div>
+
+</div>
+
+<!-- Leaflet JS -->
+<script
+    src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js">
+</script>
+
+<script>
+
+    const DEVICE_ID = "SCOOTER001";
+
+    let map;
+    let scooterMarker;
+    let firstPosition = true;
+
+    // =====================================================
+    // Initialisation de la carte
+    // =====================================================
+
+    function initMap() {
+
+        map = L.map("map");
+
+        L.tileLayer(
+            "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",
+            {
+                maxZoom: 19,
+                attribution: "&copy; OpenStreetMap contributors"
+            }
+        ).addTo(map);
+
+        // Position temporaire
+        map.setView([36.8065, 10.1815], 12);
+    }
+
+    // =====================================================
+    // Récupérer la dernière position
+    // =====================================================
+
+    async function getLatestPosition() {
+
+        try {
+
+            const response = await fetch(
+                `/api/gps/latest/${DEVICE_ID}`,
+                {
+                    headers: {
+                        "X-Device-Token": "TON_TOKEN"
+                    }
+                }
+            );
+
+            const result = await response.json();
+
+            if (!response.ok || !result.success) {
+
+                throw new Error(
+                    result.message || "Erreur serveur"
+                );
+            }
+
+            const gps = result.data;
+
+            // =============================================
+            // Affichage des données
+            // =============================================
+
+            document.getElementById("status").textContent =
+                "Connecté";
+
+            document.getElementById("status").className =
+                "value status";
+
+            document.getElementById("latitude").textContent =
+                Number(gps.latitude).toFixed(6);
+
+            document.getElementById("longitude").textContent =
+                Number(gps.longitude).toFixed(6);
+
+            document.getElementById("speed").textContent =
+                `${Number(gps.speed || 0).toFixed(2)} km/h`;
+
+            // =============================================
+            // Mise à jour de la carte
+            // =============================================
+
+            const latitude = Number(gps.latitude);
+            const longitude = Number(gps.longitude);
+
+            const position = [latitude, longitude];
+
+            if (!scooterMarker) {
+
+                scooterMarker = L.marker(position)
+                    .addTo(map)
+                    .bindPopup("Scooter");
+
+            } else {
+
+                scooterMarker.setLatLng(position);
+            }
+
+            // =============================================
+            // Centrer la carte uniquement au premier chargement
+            // =============================================
+
+            if (firstPosition) {
+
+                map.setView(position, 16);
+
+                firstPosition = false;
+            }
+
+        } catch (error) {
+
+            console.error(error);
+
+            document.getElementById("status").textContent =
+                "Erreur";
+
+            document.getElementById("status").className =
+                "value error";
+        }
+    }
+
+    // =====================================================
+    // Démarrage
+    // =====================================================
+
+    initMap();
+
+    getLatestPosition();
+
+</script>
 
 </body>
 </html>
