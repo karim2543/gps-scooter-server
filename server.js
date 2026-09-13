@@ -82,7 +82,6 @@ function authenticateGetRequest(req, res, next) {
 }
 app.get(
     "/api/gps/latest/:device_id",
-    authenticateGetRequest,
     async (req, res) => {
 
         const { device_id } = req.params;
