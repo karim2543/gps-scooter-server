@@ -58,7 +58,64 @@ function authenticateDevice(req, res, next) {
     // Authentification réussie
     next();
 }
+function authenticateGetRequest(req, res, next) {
 
+    const token = req.headers["x-device-token"];
+
+    if (!token) {
+        return res.status(400).json({
+            success: false,
+            message: "Missing device token"
+        });
+    }
+
+    if (token !== process.env.DEVICE_TOKEN) {
+        return res.status(401).json({
+            success: false,
+            message: "Invalid token"
+        });
+    }
+
+    next();
+}
+app.get(
+    "/api/gps/latest/:device_id",
+    authenticateGetRequest,
+    async (req, res) => {
+
+        const { device_id } = req.params;
+
+        if (device_id !== "SCOOTER001") {
+            return res.status(401).json({
+                success: false,
+                message: "Unknown device"
+            });
+        }
+
+        const { data, error } = await supabase
+            .from("gps_positions")
+            .select("*")
+            .eq("device_id", device_id)
+            .order("created_at", { ascending: false })
+            .limit(1)
+            .single();
+
+        if (error) {
+
+            console.error("Supabase select error:", error);
+
+            return res.status(500).json({
+                success: false,
+                message: "Failed to retrieve GPS data"
+            });
+        }
+
+        return res.status(200).json({
+            success: true,
+            data: data
+        });
+    }
+);
 app.post("/api/gps", authenticateDevice, async (req, res) => {
 
     const {
