@@ -2,12 +2,17 @@ require("dotenv").config();
 
 const express = require("express");
 const session = require("express-session");
+const pgSession = require("connect-pg-simple")(session);
+const { Pool } = require("pg");
 const path = require("path");
 const { createClient } = require("@supabase/supabase-js");
 
 const app = express();
 
+app.set("trust proxy", 1);
+
 app.use(express.json());
+app.use(express.urlencoded({ extended: false }));
 
 // =====================================================
 // Supabase
@@ -19,29 +24,27 @@ const supabase = createClient(
 );
 
 // =====================================================
-// Session
+// PostgreSQL - Session Store
 // =====================================================
+
+const pgPool = new Pool({
+    connectionString: process.env.DATABASE_URL,
+    ssl: {
+        rejectUnauthorized: false
+    }
+});
+
 // =====================================================
 // Session
 // =====================================================
 
-app.set("trust proxy", 1);
-
 app.use(
     session({
-        secret: process.env.SESSION_SECRET,
-        resave: false,
-        saveUninitialized: false,
-        cookie: {
-            httpOnly: true,
-            secure: true,
-            sameSite: "lax",
-            maxAge: 1000 * 60 * 60 * 8
-        }
-    })
-);
-app.use(
-    session({
+        store: new pgSession({
+            pool: pgPool,
+            tableName: "user_sessions",
+            createTableIfMissing: true
+        }),
         secret: process.env.SESSION_SECRET,
         resave: false,
         saveUninitialized: false,
@@ -65,14 +68,17 @@ app.get("/health", (req, res) => {
 });
 
 // =====================================================
-// Authentification Dashboard
+// Login page
 // =====================================================
 
 app.get("/login", (req, res) => {
-
-    if (req.session.authenticated) {
+    if (req.session.authenticated === true) {
         return res.redirect("/");
     }
+
+    const error = req.query.error
+        ? '<div style="color:red;margin-bottom:15px;text-align:center;">Identifiants incorrects</div>'
+        : "";
 
     res.send(`
         <!DOCTYPE html>
@@ -80,7 +86,6 @@ app.get("/login", (req, res) => {
         <head>
             <meta charset="UTF-8">
             <meta name="viewport" content="width=device-width, initial-scale=1.0">
-
             <title>Connexion - GPS Scooter</title>
 
             <style>
@@ -142,12 +147,6 @@ app.get("/login", (req, res) => {
                 button:hover {
                     background: #111827;
                 }
-
-                .error {
-                    color: #dc2626;
-                    text-align: center;
-                    margin-bottom: 15px;
-                }
             </style>
         </head>
 
@@ -157,11 +156,7 @@ app.get("/login", (req, res) => {
 
                 <h1>GPS Scooter</h1>
 
-                ${
-                    req.query.error
-                        ? `<div class="error">Identifiants incorrects</div>`
-                        : ""
-                }
+                ${error}
 
                 <form method="POST" action="/login">
 
@@ -201,73 +196,77 @@ app.get("/login", (req, res) => {
 });
 
 // =====================================================
-// Traitement connexion
+// Traitement login
 // =====================================================
 
-app.use(express.urlencoded({ extended: false }));
-
 app.post("/login", (req, res) => {
+    const {
+        username,
+        password
+    } = req.body;
 
     console.log("Login attempt:", {
-        usernameReceived: req.body.username,
+        usernameReceived: username,
         userConfigured: !!process.env.DASHBOARD_USER,
         passwordConfigured: !!process.env.DASHBOARD_PASSWORD,
-        sessionSecretConfigured: !!process.env.SESSION_SECRET
+        sessionSecretConfigured: !!process.env.SESSION_SECRET,
+        databaseConfigured: !!process.env.DATABASE_URL
     });
 
-    const { username, password } = req.body;
-
     if (
-        username === process.env.DASHBOARD_USER &&
-        password === process.env.DASHBOARD_PASSWORD
+        username !== process.env.DASHBOARD_USER ||
+        password !== process.env.DASHBOARD_PASSWORD
     ) {
+        console.log("Dashboard login failed");
 
-        req.session.authenticated = true;
-
-        return req.session.save((err) => {
-
-            if (err) {
-                console.error("Session save error:", err);
-
-                return res.status(500).send(
-                    "Session error"
-                );
-            }
-
-            console.log("Dashboard login successful");
-
-            res.redirect("/");
-        });
+        return res.redirect("/login?error=1");
     }
 
-    console.log("Dashboard login failed");
+    req.session.authenticated = true;
 
-    return res.redirect("/login?error=1");
+    req.session.save((err) => {
+        if (err) {
+            console.error("Session save error:", err);
+
+            return res.status(500).send("Session error");
+        }
+
+        console.log("Dashboard login successful");
+        console.log("Session ID:", req.sessionID);
+
+        return res.redirect("/");
+    });
 });
 
 // =====================================================
-// Déconnexion
+// Logout
 // =====================================================
 
 app.get("/logout", (req, res) => {
+    req.session.destroy((err) => {
+        if (err) {
+            console.error("Session destroy error:", err);
 
-    req.session.destroy(() => {
-        res.redirect("/login");
+            return res.status(500).send("Logout error");
+        }
+
+        res.clearCookie("connect.sid");
+
+        return res.redirect("/login");
     });
 });
 
 // =====================================================
-// Middleware Dashboard
+// Middleware dashboard
 // =====================================================
 
 function requireDashboardAuth(req, res, next) {
-
     console.log("Dashboard auth check:", {
         authenticated: req.session.authenticated,
         sessionID: req.sessionID
     });
 
-    if (!req.session.authenticated) {
+    if (req.session.authenticated !== true) {
         return res.redirect("/login");
     }
 
@@ -279,7 +278,6 @@ function requireDashboardAuth(req, res, next) {
 // =====================================================
 
 app.get("/", requireDashboardAuth, (req, res) => {
-
     console.log("Dashboard access:", {
         authenticated: req.session.authenticated
     });
@@ -290,15 +288,16 @@ app.get("/", requireDashboardAuth, (req, res) => {
 });
 
 // =====================================================
-// API : authentification du scooter
+// Authentification du scooter
 // =====================================================
 
 function authenticateDevice(req, res, next) {
-
-    const { device_id, token } = req.body;
+    const {
+        device_id,
+        token
+    } = req.body;
 
     if (!device_id || !token) {
-
         return res.status(400).json({
             success: false,
             message: "Missing device_id or token"
@@ -306,7 +305,6 @@ function authenticateDevice(req, res, next) {
     }
 
     if (device_id !== "SCOOTER001") {
-
         return res.status(401).json({
             success: false,
             message: "Unknown device"
@@ -314,7 +312,6 @@ function authenticateDevice(req, res, next) {
     }
 
     if (token !== process.env.DEVICE_TOKEN) {
-
         return res.status(401).json({
             success: false,
             message: "Invalid token"
@@ -333,48 +330,64 @@ app.get(
     requireDashboardAuth,
     async (req, res) => {
 
-        const { device_id } = req.params;
+        const {
+            device_id
+        } = req.params;
 
         if (device_id !== "SCOOTER001") {
-
             return res.status(401).json({
                 success: false,
                 message: "Unknown device"
             });
         }
 
-        const { data, error } = await supabase
-            .from("gps_positions")
-            .select("*")
-            .eq("device_id", device_id)
-            .order("created_at", {
-                ascending: false
-            })
-            .limit(1)
-            .single();
+        try {
+            const {
+                data,
+                error
+            } = await supabase
+                .from("gps_positions")
+                .select("*")
+                .eq("device_id", device_id)
+                .order("created_at", {
+                    ascending: false
+                })
+                .limit(1)
+                .single();
 
-        if (error) {
+            if (error) {
+                console.error(
+                    "Supabase select error:",
+                    error
+                );
 
+                return res.status(500).json({
+                    success: false,
+                    message: "Failed to retrieve GPS data"
+                });
+            }
+
+            return res.status(200).json({
+                success: true,
+                data: data
+            });
+
+        } catch (error) {
             console.error(
-                "Supabase select error:",
+                "Latest GPS exception:",
                 error
             );
 
             return res.status(500).json({
                 success: false,
-                message: "Failed to retrieve GPS data"
+                message: "Internal server error"
             });
         }
-
-        return res.status(200).json({
-            success: true,
-            data: data
-        });
     }
 );
 
 // =====================================================
-// API : envoyer une position GPS
+// API : envoyer position GPS
 // =====================================================
 
 app.post(
@@ -389,70 +402,85 @@ app.post(
             speed
         } = req.body;
 
-        // Vérification latitude
         if (
             typeof latitude !== "number" ||
             typeof longitude !== "number"
         ) {
-
             return res.status(400).json({
                 success: false,
-                message:
-                    "Latitude and longitude must be numbers"
+                message: "Latitude and longitude must be numbers"
             });
         }
 
-        if (latitude < -90 || latitude > 90) {
-
+        if (
+            latitude < -90 ||
+            latitude > 90
+        ) {
             return res.status(400).json({
                 success: false,
                 message: "Invalid latitude"
             });
         }
 
-        if (longitude < -180 || longitude > 180) {
-
+        if (
+            longitude < -180 ||
+            longitude > 180
+        ) {
             return res.status(400).json({
                 success: false,
                 message: "Invalid longitude"
             });
         }
 
-        const { data, error } = await supabase
-            .from("gps_positions")
-            .insert([
-                {
-                    device_id,
-                    latitude,
-                    longitude,
-                    speed
-                }
-            ])
-            .select();
+        try {
+            const {
+                data,
+                error
+            } = await supabase
+                .from("gps_positions")
+                .insert([
+                    {
+                        device_id,
+                        latitude,
+                        longitude,
+                        speed
+                    }
+                ])
+                .select();
 
-        if (error) {
+            if (error) {
+                console.error(
+                    "Supabase insert error:",
+                    error
+                );
 
+                return res.status(500).json({
+                    success: false,
+                    message: "Failed to save GPS data"
+                });
+            }
+
+            console.log(
+                "GPS data saved:",
+                data
+            );
+
+            return res.status(200).json({
+                success: true,
+                message: "GPS data accepted and saved"
+            });
+
+        } catch (error) {
             console.error(
-                "Supabase insert error:",
+                "GPS insert exception:",
                 error
             );
 
             return res.status(500).json({
                 success: false,
-                message: "Failed to save GPS data"
+                message: "Internal server error"
             });
         }
-
-        console.log(
-            "GPS data saved:",
-            data
-        );
-
-        return res.status(200).json({
-            success: true,
-            message:
-                "GPS data accepted and saved"
-        });
     }
 );
 
@@ -465,47 +493,62 @@ app.get(
     requireDashboardAuth,
     async (req, res) => {
 
-        const { device_id } = req.params;
+        const {
+            device_id
+        } = req.params;
 
         if (device_id !== "SCOOTER001") {
-
             return res.status(401).json({
                 success: false,
                 message: "Unknown device"
             });
         }
 
-        const { data, error } = await supabase
-            .from("gps_positions")
-            .select(
-                "latitude, longitude, speed, created_at"
-            )
-            .eq("device_id", device_id)
-            .order("created_at", {
-                ascending: false
-            })
-            .limit(500);
+        try {
+            const {
+                data,
+                error
+            } = await supabase
+                .from("gps_positions")
+                .select(
+                    "latitude, longitude, speed, created_at"
+                )
+                .eq("device_id", device_id)
+                .order("created_at", {
+                    ascending: false
+                })
+                .limit(500);
 
-        if (error) {
+            if (error) {
+                console.error(
+                    "Supabase history error:",
+                    error
+                );
 
+                return res.status(500).json({
+                    success: false,
+                    message: "Failed to retrieve GPS history"
+                });
+            }
+
+            data.reverse();
+
+            return res.status(200).json({
+                success: true,
+                data: data
+            });
+
+        } catch (error) {
             console.error(
-                "Supabase history error:",
+                "GPS history exception:",
                 error
             );
 
             return res.status(500).json({
                 success: false,
-                message:
-                    "Failed to retrieve GPS history"
+                message: "Internal server error"
             });
         }
-
-        data.reverse();
-
-        return res.status(200).json({
-            success: true,
-            data: data
-        });
     }
 );
 
