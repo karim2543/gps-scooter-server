@@ -7,6 +7,8 @@ const app = express();
 
 app.use(express.json());
 
+app.use(express.static("public"));
+
 const supabase = createClient(
     process.env.SUPABASE_URL,
     process.env.SUPABASE_SECRET_KEY
