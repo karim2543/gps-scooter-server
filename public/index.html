@@ -180,12 +180,7 @@
         try {
 
             const response = await fetch(
-                `/api/gps/latest/${DEVICE_ID}`,
-                {
-                    headers: {
-                        "X-Device-Token": "TON_TOKEN"
-                    }
-                }
+                `/api/gps/latest/${DEVICE_ID}`
             );
 
             const result = await response.json();
