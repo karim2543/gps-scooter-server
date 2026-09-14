@@ -3,19 +3,40 @@ require("dotenv").config();
 const express = require("express");
 const session = require("express-session");
 const pgSession = require("connect-pg-simple")(session);
+const helmet = require("helmet");
 const path = require("path");
 
 const pgPool = require("./config/database");
-const requireDashboardAuth = require("./middleware/auth");
+const { requireDashboardAuth } = require("./middleware/auth");
 const authRoutes = require("./routes/auth.routes");
 const gpsRoutes = require("./routes/gps.routes");
 
 const app = express();
 
 app.set("trust proxy", 1);
+app.disable("x-powered-by");
 
-app.use(express.json());
-app.use(express.urlencoded({ extended: false }));
+// =====================================================
+// Headers de sécurité (CSP adaptée pour Leaflet/OpenStreetMap)
+// =====================================================
+
+app.use(
+    helmet({
+        contentSecurityPolicy: {
+            directives: {
+                defaultSrc: ["'self'"],
+                scriptSrc: ["'self'", "https://unpkg.com"],
+                styleSrc: ["'self'", "https://unpkg.com", "'unsafe-inline'"],
+                imgSrc: ["'self'", "data:", "https://*.tile.openstreetmap.org", "https://unpkg.com"],
+                connectSrc: ["'self'"]
+            }
+        }
+    })
+);
+
+// Limite la taille du corps des requêtes (anti DoS par payload énorme)
+app.use(express.json({ limit: "10kb" }));
+app.use(express.urlencoded({ extended: false, limit: "10kb" }));
 
 // =====================================================
 // Session

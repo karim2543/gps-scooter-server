@@ -1,7 +1,8 @@
 const express = require("express");
 
-const requireDashboardAuth = require("../middleware/auth");
+const { requireDashboardAuthApi } = require("../middleware/auth");
 const authenticateDevice = require("../middleware/deviceAuth");
+const { deviceLimiter } = require("../middleware/rateLimit");
 const gpsService = require("../services/gps.service");
 
 const router = express.Router();
@@ -12,7 +13,7 @@ const router = express.Router();
 
 router.get(
     "/latest/:device_id",
-    requireDashboardAuth,
+    requireDashboardAuthApi,
     async (req, res) => {
 
         const {
@@ -69,6 +70,7 @@ router.get(
 
 router.post(
     "/",
+    deviceLimiter,
     authenticateDevice,
     async (req, res) => {
 
@@ -162,7 +164,7 @@ router.post(
 
 router.get(
     "/history/:device_id",
-    requireDashboardAuth,
+    requireDashboardAuthApi,
     async (req, res) => {
 
         const {

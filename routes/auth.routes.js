@@ -1,6 +1,8 @@
 const express = require("express");
 const path = require("path");
 
+const { loginLimiter } = require("../middleware/rateLimit");
+
 const router = express.Router();
 
 // =====================================================
@@ -21,7 +23,7 @@ router.get("/login", (req, res) => {
 // Traitement login
 // =====================================================
 
-router.post("/login", (req, res) => {
+router.post("/login", loginLimiter, (req, res) => {
     const {
         username,
         password
