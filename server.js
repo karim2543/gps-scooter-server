@@ -30,6 +30,10 @@ app.use(
                 imgSrc: ["'self'", "data:", "https://*.tile.openstreetmap.org", "https://unpkg.com"],
                 connectSrc: ["'self'"]
             }
+        },
+
+        referrerPolicy: {
+            policy: "strict-origin-when-cross-origin"
         }
     })
 );
