@@ -48,4 +48,4 @@ function authenticateDevice(req, res, next) {
     next();
 }
 
-module.exports = authenticateDevice;
+module.exports = { authenticateDevice, safeCompare };
