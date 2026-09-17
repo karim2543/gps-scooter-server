@@ -13,6 +13,30 @@ header {
     padding: 20px;
     background: #1f2937;
     color: white;
+
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+header h1 {
+    margin: 0;
+    font-size: 24px;
+}
+
+#logoutButton {
+    padding: 8px 16px;
+    border: none;
+    border-radius: 6px;
+    background: #dc3545;
+    color: white;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+}
+
+#logoutButton:hover {
+    background: #bb2d3b;
 }
 
 header h1 {
