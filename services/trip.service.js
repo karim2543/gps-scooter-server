@@ -6,10 +6,16 @@ const supabase = require("../config/supabase");
 
 async function createTrip(deviceId) {
 
-    // Vérifier s'il existe déjà un trajet en cours
-    const { data: activeTrip, error: activeError } = await supabase
+    // -------------------------------------------------
+    // Rechercher le trajet actuellement actif
+    // -------------------------------------------------
+
+    const {
+        data: activeTrip,
+        error: activeError
+    } = await supabase
         .from("trips")
-        .select("*")
+        .select("id, device_id, started_at, ended_at")
         .eq("device_id", deviceId)
         .is("ended_at", null)
         .maybeSingle();
@@ -21,17 +27,34 @@ async function createTrip(deviceId) {
         };
     }
 
-    // Pour cette étape, on ne crée pas un deuxième trajet
-    // tant qu'un trajet est déjà actif.
+
+    // -------------------------------------------------
+    // Terminer le trajet actif
+    // -------------------------------------------------
+
     if (activeTrip) {
-        return {
-            data: null,
-            error: {
-                code: "ACTIVE_TRIP_EXISTS",
-                message: "An active trip already exists"
-            }
-        };
+
+        const {
+            error: endError
+        } = await supabase
+            .from("trips")
+            .update({
+                ended_at: new Date().toISOString()
+            })
+            .eq("id", activeTrip.id);
+
+        if (endError) {
+            return {
+                data: null,
+                error: endError
+            };
+        }
     }
+
+
+    // -------------------------------------------------
+    // Créer le nouveau trajet
+    // -------------------------------------------------
 
     return supabase
         .from("trips")

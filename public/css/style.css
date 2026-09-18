@@ -105,3 +105,28 @@ header h1 {
         height: 450px;
     }
 }
+
+.trip-card {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.trip-started {
+    font-size: 13px;
+    color: #666;
+}
+
+.new-trip-button {
+    margin-top: 8px;
+    padding: 10px 16px;
+    border: none;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 14px;
+}
+
+.new-trip-button:disabled {
+    cursor: not-allowed;
+    opacity: 0.6;
+}

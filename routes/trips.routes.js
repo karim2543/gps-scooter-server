@@ -37,15 +37,6 @@ router.post(
 
             if (error) {
 
-                if (
-                    error.code === "ACTIVE_TRIP_EXISTS"
-                ) {
-                    return res.status(409).json({
-                        success: false,
-                        message: error.message
-                    });
-                }
-
                 console.error(
                     "Supabase create trip error:",
                     error
