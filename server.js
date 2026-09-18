@@ -108,7 +108,7 @@ app.get("/", requireDashboardAuth, (req, res) => {
 // =====================================================
 
 app.use("/api/gps", gpsRoutes);
-
+app.use("/api/auth", authRoutes);
 app.use("/api/trips", tripsRoutes);
 
 // =====================================================
