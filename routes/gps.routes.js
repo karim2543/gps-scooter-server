@@ -1,7 +1,7 @@
 const express = require("express");
 
 const { requireDashboardAuthApi } = require("../middleware/auth");
-const { authenticateDevice } = require("../middleware/deviceAuth");
+const authenticateDevice = require("../middleware/deviceAuth");
 const { deviceLimiter } = require("../middleware/rateLimit");
 const gpsService = require("../services/gps.service");
 
