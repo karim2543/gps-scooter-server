@@ -1,3 +1,4 @@
+const { safeCompare } = require("../middleware/auth");
 function authenticateDevice(req, res, next) {
     const {
         device_id,
