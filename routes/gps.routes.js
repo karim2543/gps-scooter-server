@@ -122,7 +122,27 @@ router.post(
                 speed
             });
 
+            // =====================================================
+            // Aucun trajet actif
+            // =====================================================
+
+            if (
+                error &&
+                error.code === "NO_ACTIVE_TRIP"
+            ) {
+
+                return res.status(409).json({
+                    success: false,
+                    message: "No active trip for this device"
+                });
+            }
+
+            // =====================================================
+            // Erreur Supabase
+            // =====================================================
+
             if (error) {
+
                 console.error(
                     "Supabase insert error:",
                     error
@@ -133,11 +153,6 @@ router.post(
                     message: "Failed to save GPS data"
                 });
             }
-
-            console.log(
-                "GPS data saved:",
-                data
-            );
 
             return res.status(200).json({
                 success: true,
