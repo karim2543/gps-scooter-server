@@ -5,6 +5,9 @@ let scooterMarker;
 let firstPosition = true;
 let routeLine;
 
+// Dernier point ajouté au tracé
+let lastRoutePoint = null;
+
 // =====================================================
 // Initialisation de la carte
 // =====================================================
@@ -67,9 +70,11 @@ async function getLatestPosition() {
 
             document.getElementById("status").className =
                 "value error";
-            document.getElementById("lastUpdate").textContent =
-                lastUpdate.toLocaleTimeString();
-            }
+        }
+
+        document.getElementById("lastUpdate").textContent =
+            lastUpdate.toLocaleTimeString();
+
         // =============================================
         // Affichage des données
         // =============================================
@@ -84,13 +89,17 @@ async function getLatestPosition() {
             `${Number(gps.speed || 0).toFixed(2)} km/h`;
 
         // =============================================
-        // Mise à jour de la carte
+        // Position GPS actuelle
         // =============================================
 
         const latitude = Number(gps.latitude);
         const longitude = Number(gps.longitude);
 
         const position = [latitude, longitude];
+
+        // =============================================
+        // Mise à jour du marqueur
+        // =============================================
 
         if (!scooterMarker) {
 
@@ -102,6 +111,12 @@ async function getLatestPosition() {
 
             scooterMarker.setLatLng(position);
         }
+
+        // =============================================
+        // Mise à jour du tracé
+        // =============================================
+
+        updateRouteLine(position);
 
         // =============================================
         // Centrer la carte uniquement au premier chargement
@@ -127,6 +142,34 @@ async function getLatestPosition() {
 }
 
 // =====================================================
+// Mettre à jour le tracé avec la nouvelle position
+// =====================================================
+
+function updateRouteLine(position) {
+
+    // Éviter d'ajouter deux fois exactement le même point
+    if (
+        lastRoutePoint &&
+        lastRoutePoint[0] === position[0] &&
+        lastRoutePoint[1] === position[1]
+    ) {
+        return;
+    }
+
+    // Premier point
+    if (!routeLine) {
+
+        routeLine = L.polyline([position]).addTo(map);
+
+    } else {
+
+        routeLine.addLatLng(position);
+    }
+
+    lastRoutePoint = position;
+}
+
+// =====================================================
 // Charger l'historique du trajet
 // =====================================================
 
@@ -141,6 +184,7 @@ async function loadHistory() {
         const result = await response.json();
 
         if (!response.ok || !result.success) {
+
             throw new Error(
                 result.message || "Erreur lors du chargement de l'historique"
             );
@@ -151,15 +195,20 @@ async function loadHistory() {
             Number(point.longitude)
         ]);
 
-        if (points.length < 2) {
+        if (points.length === 0) {
             return;
         }
 
+        // Si une ancienne ligne existe, on la supprime
         if (routeLine) {
             map.removeLayer(routeLine);
         }
 
+        // Créer le tracé avec l'historique
         routeLine = L.polyline(points).addTo(map);
+
+        // Mémoriser le dernier point connu
+        lastRoutePoint = points[points.length - 1];
 
     } catch (error) {
 
