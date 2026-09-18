@@ -1,3 +1,21 @@
+const crypto = require("crypto");
+// =====================================================
+// Comparaison en temps constant (anti timing-attack)
+// =====================================================
+
+function safeCompare(a, b) {
+    const bufA = Buffer.from(String(a));
+    const bufB = Buffer.from(String(b));
+
+    if (bufA.length !== bufB.length) {
+        // On compare quand même deux buffers de même taille pour que le
+        // temps de réponse ne varie pas selon la longueur de la valeur reçue
+        crypto.timingSafeEqual(bufA, bufA);
+        return false;
+    }
+
+    return crypto.timingSafeEqual(bufA, bufB);
+}
 // =====================================================
 // Pour les pages HTML (dashboard) : redirige vers /login
 // =====================================================
@@ -39,5 +57,6 @@ function requireDashboardAuthApi(req, res, next) {
 
 module.exports = {
     requireDashboardAuth,
-    requireDashboardAuthApi
+    requireDashboardAuthApi,
+    safeCompare
 };

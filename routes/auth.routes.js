@@ -2,7 +2,7 @@ const express = require("express");
 const path = require("path");
 
 const { loginLimiter } = require("../middleware/rateLimit");
-const { safeCompare } = require("../middleware/deviceAuth");
+const { safeCompare } = require("../middleware/auth");
 const router = express.Router();
 
 // =====================================================

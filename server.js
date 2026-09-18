@@ -10,6 +10,7 @@ const pgPool = require("./config/database");
 const { requireDashboardAuth } = require("./middleware/auth");
 const authRoutes = require("./routes/auth.routes");
 const gpsRoutes = require("./routes/gps.routes");
+const tripsRoutes = require("./routes/trips.routes");
 
 const app = express();
 
@@ -107,6 +108,8 @@ app.get("/", requireDashboardAuth, (req, res) => {
 // =====================================================
 
 app.use("/api/gps", gpsRoutes);
+
+app.use("/api/trips", tripsRoutes);
 
 // =====================================================
 // Serveur
