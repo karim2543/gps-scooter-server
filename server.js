@@ -145,7 +145,7 @@ app.use((err, req, res, next) => {
 // =====================================================
 // Serveur
 // =====================================================
-
+console.log("Server process started. PID:", process.pid);
 const PORT = process.env.PORT || 3000;
 
 const server = app.listen(
