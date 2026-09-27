@@ -6,5 +6,9 @@ const pgPool = new Pool({
         rejectUnauthorized: false
     }
 });
+// Gère les erreurs réseau sur les connexions idle du pool
+pgPool.on("error", (err) => {
+    console.error("Unexpected PostgreSQL pool error:", err.message);
+});
 
 module.exports = pgPool;

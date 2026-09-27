@@ -112,12 +112,43 @@ app.use("/api/auth", authRoutes);
 app.use("/api/trips", tripsRoutes);
 
 // =====================================================
+// Gestion des routes inconnues
+// =====================================================
+
+app.use((req, res) => {
+    res.status(404).json({
+        error: "Route not found"
+    });
+});
+
+// =====================================================
+// Gestion globale des erreurs
+// =====================================================
+
+app.use((err, req, res, next) => {
+
+    console.error("Unhandled server error:", err);
+
+    if (res.headersSent) {
+        return next(err);
+    }
+
+    const statusCode = err.status || err.statusCode || 500;
+
+    res.status(statusCode).json({
+        error: statusCode >= 500
+            ? "Internal server error"
+            : err.message
+    });
+});
+
+// =====================================================
 // Serveur
 // =====================================================
 
 const PORT = process.env.PORT || 3000;
 
-app.listen(
+const server = app.listen(
     PORT,
     "0.0.0.0",
     () => {
@@ -126,3 +157,50 @@ app.listen(
         );
     }
 );
+
+// =====================================================
+// Arrêt propre du serveur
+// =====================================================
+
+let isShuttingDown = false;
+
+const gracefulShutdown = (signal) => {
+
+    if (isShuttingDown) {
+        return;
+    }
+
+    isShuttingDown = true;
+
+    console.log(`${signal} received. Starting graceful shutdown...`);
+
+    server.close(async (err) => {
+
+        if (err) {
+            console.error("HTTP server shutdown error:", err);
+        } else {
+            console.log("HTTP server closed.");
+        }
+
+        try {
+
+            await pgPool.end();
+
+            console.log("PostgreSQL pool closed.");
+
+            process.exit(err ? 1 : 0);
+
+        } catch (poolError) {
+
+            console.error(
+                "PostgreSQL pool shutdown error:",
+                poolError
+            );
+
+            process.exit(1);
+        }
+    });
+};
+
+process.on("SIGTERM", () => gracefulShutdown("SIGTERM"));
+process.on("SIGINT", () => gracefulShutdown("SIGINT"));
